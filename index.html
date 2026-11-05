@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Central da Tropa v2</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FF6B00">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="./icon.svg">
+    <link rel="apple-touch-icon" href="./icon.svg">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root { 
+            --bg-color: #0f1115; --card-bg: #1c1f26; --primary: #FF6B00; --text-light: #f1f1f1; 
+            --text-muted: #8b949e; --success: #25D366; --danger: #ff4444; --warning: #ffc107; 
+            --info: #1877F2; --progress-bg: #30363d; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-light); padding: 15px; padding-bottom: 60px; transition: 0.3s; }
+        body.modo-extremo { --bg-color: #000000; --card-bg: #000000; --primary: #39ff14; --text-light: #39ff14; --text-muted: #228b22; --success: #39ff14; }
+        body.modo-extremo .card, body.modo-extremo .menu-item, body.modo-extremo .mantra-top-card { border: 1px solid var(--primary); box-shadow: none; }
+        body.modo-extremo .btn-calc { background-color: var(--primary); color: #000; }
+
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+        .btn-voltar { display: none; background: none; border: none; color: var(--primary); font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-night { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .header { flex-grow: 1; text-align: center; }
+        .header h1 { color: var(--primary); font-size: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        .header p { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+        
+        /* MOTO DIGITÁVEL */
+        .moto-setup { background: rgba(255,107,0,0.05); border: 1px dashed var(--primary); padding: 10px; border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+        .moto-setup input { flex: 1; background: #0f1115; color: var(--text-light); border: 1px solid var(--primary); padding: 6px 10px; border-radius: 6px; font-weight: bold; outline: none; font-size: 13px; }
+        .moto-setup input::placeholder { color: var(--text-muted); font-weight: normal; }
+
+        /* MANTRA NO TOPO */
+        .mantra-top-card { background: var(--card-bg); border: 1px solid var(--primary); border-radius: 12px; padding: 12px 15px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: 0.2s; }
+        .mantra-top-card:active { transform: scale(0.98); }
+        
+        /* CLIMA SP ORIGINAL COM DADOS AO VIVO */
+        .weather-home-card { background: var(--card-bg); border: 1px solid var(--primary); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(255, 107, 0, 0.1); }
+        .weather-home-title { font-size: 12px; color: var(--primary); font-weight: bold; text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .weather-hora { font-size: 12px; background: rgba(255,107,0,0.25); padding: 3px 8px; border-radius: 6px; color: var(--text-light); font-weight: bold; letter-spacing: 0.5px; }
+        .weather-select { width: 100%; background-color: #0f1115; border: 1px solid var(--primary); border-radius: 6px; padding: 8px; color: var(--text-light); font-size: 13px; margin-bottom: 10px; font-weight: bold; outline:none; }
+        .weather-desc { font-size: 12px; color: var(--text-light); font-weight: 500; }
+        .weather-links { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; border-top: 1px dashed #30363d; padding-top: 10px; }
+        .weather-link-btn { background: rgba(24, 119, 242, 0.1); border: 1px solid var(--info); color: var(--info); padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: bold; text-align: center; flex: 1; }
+        
+        /* GRADE DE ÍCONES IGUAL AO ANTIGO */
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .menu-item { background-color: var(--card-bg); border: 1px solid #30363d; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; transition: 0.2s; min-height: 95px; justify-content: center; }
+        .menu-item:active { transform: scale(0.96); }
+        .menu-icon { font-size: 26px; margin-bottom: 4px; }
+        .menu-text h3 { font-size: 12px; color: var(--text-light); margin-bottom: 2px; font-weight: bold; }
+        .menu-text p { font-size: 9px; color: var(--text-muted); line-height: 1.1; }
+        
+        /* TELAS E FORMULÁRIOS */
+        .tela-app { display: none; }
+        .card { background-color: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #30363d; }
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; background-color: #0f1115; border: 1px solid #30363d; border-radius: 8px; padding: 10px; color: var(--text-light); font-size: 14px; outline: none; }
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus { border-color: var(--primary); }
+        .btn-calc { width: 100%; background-color: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: bold; text-transform: uppercase; cursor: pointer; margin-top: 8px; transition: 0.3s; display: inline-block; text-decoration: none; text-align: center; }
+        .btn-calc:active { opacity: 0.8; }
+        .btn-cancel { width: 100%; background-color: #30363d; color: var(--text-light); border: none; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; text-transform: uppercase; cursor: pointer; margin-top: 6px; display: none; }
+        
+        /* LISTAS E BOTÕES DE EDITAR/EXCLUIR */
+        .log-item { background: #0f1115; border: 1px solid #30363d; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .log-left { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+        .log-tag { display: inline-block; padding: 2px 6px; font-size: 9px; font-weight: bold; border-radius: 4px; align-self: flex-start; }
+        .acoes-item { display: flex; gap: 4px; align-items: center; }
+        .btn-act { background: #1c1f26; border: 1px solid #30363d; color: var(--text-light); font-size: 12px; cursor: pointer; padding: 5px 7px; border-radius: 6px; text-decoration: none; }
+        .btn-del { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: var(--danger); font-size: 12px; cursor: pointer; padding: 5px 7px; border-radius: 6px; }
+
+        .qg-item { background: #0f1115; padding: 10px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 8px; text-align: left; font-size: 12px; }
+        
+        /* MAPAS */
+        .mapa-container { height: 260px; border-radius: 8px; z-index: 1; border: 1px solid #30363d; margin-top: 8px; }
+        .pin-custom { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+        .pin-custom span { transform: rotate(45deg); font-size: 14px; }
+
+        #toast { visibility: hidden; min-width: 250px; background-color: var(--success); color: white; text-align: center; border-radius: 8px; padding: 12px; position: fixed; z-index: 10000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 13px; font-weight: bold; }
+        #toast.show { visibility: visible; animation: fadein 0.3s, fadeout 0.3s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    </style>
+</head>
+<body>
+
+    <div id="toast">✅ Concluído!</div>
+
+    <div class="top-bar">
+        <button id="btn-voltar" class="btn-voltar" onclick="voltarContexto()">⬅ Voltar</button>
+        <div class="header">
+            <h1 id="titulo-pagina">A TROPA</h1>
+            <p id="subtitulo-pagina">Ferramentas de asfalto.</p>
+        </div>
+        <button class="btn-night" onclick="toggleModoExtremo()">🦇 Extremo</button>
+    </div>
+
+    <!-- SUA MOTO (CAMPO LIVRE EDITÁVEL) -->
+    <div class="moto-setup">
+        <span>🏍️ <strong>Sua Moto:</strong></span>
+        <input type="text" id="seletor-moto-geral" placeholder="Digite o nome da sua moto..." onchange="alterarMotoGeral()">
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TELA 0: MENU PRINCIPAL                                   -->
+    <!-- ======================================================== -->
+    <div id="tela-menu" class="tela-app" style="display: block;">
+
+        <!-- MANTRA LÁ EM CIMA -->
+        <div class="mantra-top-card" onclick="abrirTela('tela-mantra')">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">🙏</span>
+                <div>
+                    <h3 style="font-size:13px; color:var(--primary); font-weight:bold;">Mantra de Partida</h3>
+                    <p style="font-size:11px; color:var(--text-muted);">Toque para ler ou editar sua mensagem de foco</p>
+                </div>
+            </div>
+            <span style="color:var(--primary); font-weight:bold;">➔</span>
+        </div>
+        
+        <!-- CLIMA SP AO VIVO -->
+        <div class="weather-home-card">
+            <div class="weather-home-title">
+                <span>🌦️ Clima SP e Radar</span>
+                <span id="relogio-atual" class="weather-hora">--:--:--</span>
+            </div>
+            <select id="seletor-regiao" class="weather-select" onchange="atualizarClimaRegiao()">
+                <option value="centro">📍 Centro / Paulista - Carregando...</option>
+                <option value="norte">📍 Zona Norte - Carregando...</option>
+                <option value="sul">📍 Zona Sul - Carregando...</option>
+                <option value="leste">📍 Zona Leste - Carregando...</option>
+                <option value="oeste">📍 Zona Oeste - Carregando...</option>
+            </select>
+            <div class="weather-desc" id="clima-resumo-tela">🔄 Buscando condições da pista agora em São Paulo...</div>
+            <div class="weather-links">
+                <a href="https://radar.sodamobi.com/" target="_blank" class="weather-link-btn">🛰️ Radar Chuva Ao Vivo</a>
+                <a href="https://www.climatempo.com.br/radar/grande-sao-paulo" target="_blank" class="weather-link-btn">🌦️ Climatempo Radar</a>
+            </div>
+        </div>
+
+        <!-- GRADE DE ÍCONES SEPARADOS (ESTILO APP ANTIGO) -->
+        <div class="menu-grid">
+            <div class="menu-item" onclick="abrirTela('tela-lojas')">
+                <div class="menu-icon">🚫</div>
+                <div class="menu-text"><h3>Piores Lojas</h3><p>Ranking e Mapa</p></div>
+            </div>
+            <div class="menu-item" onclick="abrirTela('tela-qgs')">
+                <div class="menu-icon">📍</div>
+                <div class="menu-text"><h3>Bases & QGs</h3><p>Pontos no Mapa</p></div>
+            </div>
+
+            <div class="menu-item" onclick="abrirTela('tela-descanso')">
+                <div class="menu-icon">🛋️</div>
+                <div class="menu-text"><h3>Bom Descanso</h3><p>Apoio na Rua</p></div>
+            </div>
+            <div class="menu-item" onclick="abrirTela('tela-postos')">
+                <div class="menu-icon">⛽</div>
+                <div class="menu-text"><h3>Mapa Postos</h3><p>Preços e Qualidade</p></div>
+            </div>
+
+            <div class="menu-item" onclick="abrirTela('tela-alerta')">
+                <div class="menu-icon">📡</div>
+                <div class="menu-text"><h3>Radar Alerta</h3><p>Mapa e Enviar Grupo</p></div>
+            </div>
+            <div class="menu-item" onclick="abrirTela('tela-comunidade')">
+                <div class="menu-icon">🟢</div>
+                <div class="menu-text"><h3>Grupo Resenha</h3><p>WhatsApp da Tropa</p></div>
+            </div>
+
+            <!-- BACKUP LÁ EMBAIXO IGUAL ANTIGAMENTE -->
+            <div class="menu-item" onclick="abrirTela('tela-manual')" style="grid-column: span 2; border: 2px solid var(--warning); background-color: rgba(255, 193, 7, 0.05);">
+                <div class="menu-icon" style="font-size:24px;">⚙️</div>
+                <div class="menu-text"><h3>Manual & Backup</h3><p>Instruções e Salvar Conta</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TELAS INDIVIDUAIS DO APLICATIVO                          -->
+    <!-- ======================================================== -->
+
+    <!-- 1. TELA MANTRA (COM OPÇÃO DE EDITAR) -->
+    <div id="tela-mantra" class="tela-app">
+        <div class="card" style="text-align:center;">
+            <h3 style="color:var(--primary); margin-bottom:15px;">🙏 Mantra de Partida</h3>
+            <p id="mantra-exibicao" style="font-size:15px; font-style:italic; line-height:1.4; text-align:left; background:rgba(255,107,0,0.1); padding:15px; border-left:4px solid var(--primary); border-radius:8px;"></p>
+            
+            <div id="box-editar-mantra" style="display:none; margin-top:12px; text-align:left;">
+                <div class="input-group">
+                    <label>Editar texto do seu Mantra:</label>
+                    <textarea id="input-mantra-texto" style="height:100px;"></textarea>
+                </div>
+                <button class="btn-calc" style="background:var(--success);" onclick="salvarMantraEditado()">💾 Salvar Mantra</button>
+            </div>
+
+            <button class="btn-calc" style="margin-top:15px;" onclick="mostrarToast('🏍️ Bom corre na pista!'); voltarContexto()">Mantra Ativado. Fui!</button>
+            <button class="btn-calc" style="background:#30363d; margin-top:8px; font-size:12px; padding:9px;" onclick="abrirEdicaoMantra()">✏️ Editar Mantra</button>
+        </div>
+    </div>
+
+    <!-- 2. TELA PIORES LOJAS (MAPA + RANKING EDITÁVEL) -->
+    <div id="tela-lojas" class="tela-app">
+        <div class="card" id="form-card-lojas">
+            <h3 style="color:var(--danger); margin-bottom:6px;">🚫 Mapa & Ranking: Piores Lojas</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Toque no mapa para marcar o pino ou digite o endereço abaixo.</p>
+            <div id="map-lojas" class="mapa-container"></div>
+
+            <div class="input-group" style="margin-top:12px;">
+                <label>Nome da Loja / Restaurante</label>
+                <input type="text" id="loja-nome" placeholder="Ex: Lanchonete Shopping X">
+            </div>
+            <div class="input-group">
+                <label>Endereço</label>
+                <input type="text" id="loja-endereco" placeholder="Ex: Av. Paulista, 1500 - Bela Vista">
+            </div>
+            <div style="display:flex; gap:8px;">
+                <div class="input-group" style="flex:1;">
+                    <label>Espera Média (min)</label>
+                    <input type="number" id="loja-espera" placeholder="Ex: 35">
+                </div>
+                <div class="input-group" style="flex:1;">
+                    <label>Motivo da Cilada</label>
+                    <input type="text" id="loja-motivo" placeholder="Ex: Demora / Sem vaga">
+                </div>
+            </div>
+            <button class="btn-calc" id="btn-salvar-loja" style="background:var(--danger);" onclick="salvarItemModulo('lojas')">Adicionar Pior Loja</button>
+            <button class="btn-cancel" id="btn-cancel-loja" onclick="cancelarEdicao('lojas')">Cancelar Edição</button>
+
+            <h4 style="color:var(--warning); font-size:13px; margin-top:18px; margin-bottom:8px;">🏆 Ranking das Piores Lojas</h4>
+            <div id="lista-lojas"></div>
+        </div>
+    </div>
+
+    <!-- 3. TELA BASES & QGS (MAPA EDITÁVEL) -->
+    <div id="tela-qgs" class="tela-app">
+        <div class="card" id="form-card-qgs">
+            <h3 style="color:var(--primary); margin-bottom:6px;">📍 Bases e QGs da Tropa</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Toque no mapa ou escreva o endereço abaixo.</p>
+            <div id="map-qgs" class="mapa-container"></div>
+
+            <div class="input-group" style="margin-top:12px;">
+                <label>Nome do QG / Ponto</label>
+                <input type="text" id="qg-nome" placeholder="Ex: QG Praça Oswaldo Cruz">
+            </div>
+            <div class="input-group">
+                <label>Endereço</label>
+                <input type="text" id="qg-endereco" placeholder="Ex: Praça Oswaldo Cruz - Paraíso">
+            </div>
+            <div class="input-group">
+                <label>Detalhes / Como toca lá</label>
+                <input type="text" id="qg-desc" placeholder="Ex: Galera reunida, toca bem almoço e janta">
+            </div>
+            <button class="btn-calc" id="btn-salvar-qg" onclick="salvarItemModulo('qgs')">Adicionar QG</button>
+            <button class="btn-cancel" id="btn-cancel-qg" onclick="cancelarEdicao('qgs')">Cancelar Edição</button>
+
+            <h4 style="color:var(--primary); font-size:13px; margin-top:18px; margin-bottom:8px;">📋 QGs Cadastrados</h4>
+            <div id="lista-qgs"></div>
+        </div>
+    </div>
+
+    <!-- 4. TELA BOM DESCANSO (MAPA EDITÁVEL) -->
+    <div id="tela-descanso" class="tela-app">
+        <div class="card" id="form-card-descanso">
+            <h3 style="color:var(--success); margin-bottom:6px;">🛋️ Lugares Bons para Descansar</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Toque no mapa ou escreva o endereço abaixo.</p>
+            <div id="map-descanso" class="mapa-container"></div>
+
+            <div class="input-group" style="margin-top:12px;">
+                <label>Nome do Local</label>
+                <input type="text" id="descanso-nome" placeholder="Ex: Ponto de Apoio Consolação">
+            </div>
+            <div class="input-group">
+                <label>Endereço</label>
+                <input type="text" id="descanso-endereco" placeholder="Ex: Rua da Consolação, 2200">
+            </div>
+            <div class="input-group">
+                <label>Estrutura (Água, Banheiro, Tomada, Sombra)</label>
+                <input type="text" id="descanso-desc" placeholder="Ex: Banheiro limpo, tomada liberada e banco">
+            </div>
+            <button class="btn-calc" id="btn-salvar-descanso" style="background:var(--success); color:#000;" onclick="salvarItemModulo('descanso')">Adicionar Ponto de Descanso</button>
+            <button class="btn-cancel" id="btn-cancel-descanso" onclick="cancelarEdicao('descanso')">Cancelar Edição</button>
+
+            <h4 style="color:var(--success); font-size:13px; margin-top:18px; margin-bottom:8px;">📋 Locais de Descanso</h4>
+            <div id="lista-descanso"></div>
+        </div>
+    </div>
+
+    <!-- 5. TELA MAPA DE POSTOS (MAPA EDITÁVEL) -->
+    <div id="tela-postos" class="tela-app">
+        <div class="card" id="form-card-postos">
+            <h3 style="color:var(--primary); margin-bottom:6px;">⛽ Mapa de Postos</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Toque no mapa ou escreva o endereço abaixo.</p>
+            <div id="map-postos" class="mapa-container"></div>
+
+            <div class="input-group" style="margin-top:12px;">
+                <label>Nome / Bandeira do Posto</label>
+                <input type="text" id="posto-nome" placeholder="Ex: Posto Shell Paulista">
+            </div>
+            <div class="input-group">
+                <label>Endereço</label>
+                <input type="text" id="posto-endereco" placeholder="Ex: Av. Paulista, 900">
+            </div>
+            <div style="display:flex; gap:8px;">
+                <div class="input-group" style="flex:1;">
+                    <label>Preço Gasolina (R$)</label>
+                    <input type="number" id="posto-preco" placeholder="5.79" step="0.01">
+                </div>
+                <div class="input-group" style="flex:1;">
+                    <label>Avaliação</label>
+                    <select id="posto-nota">
+                        <option value="Boa ⭐⭐⭐">Boa ⭐⭐⭐</option>
+                        <option value="Média ⭐⭐">Média ⭐⭐</option>
+                        <option value="Ruim ⭐">Ruim ⭐</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-calc" id="btn-salvar-posto" onclick="salvarItemModulo('postos')">Adicionar Posto</button>
+            <button class="btn-cancel" id="btn-cancel-posto" onclick="cancelarEdicao('postos')">Cancelar Edição</button>
+
+            <h4 style="color:var(--primary); font-size:13px; margin-top:18px; margin-bottom:8px;">📋 Postos Salvos</h4>
+            <div id="lista-postos"></div>
+        </div>
+    </div>
+
+    <!-- 6. TELA RADAR DE ALERTA PARA A TROPA (MAPA + WHATSAPP) -->
+    <div id="tela-alerta" class="tela-app">
+        <div class="card" id="form-card-alertas">
+            <h3 style="color:var(--warning); margin-bottom:6px;">📡 Radar de Alertas da Tropa</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">Marque o alerta no mapa e envie direto no WhatsApp da Tropa.</p>
+            <div id="map-alertas" class="mapa-container"></div>
+
+            <div class="input-group" style="margin-top:12px;">
+                <label>Tipo de Ocorrência</label>
+                <select id="alerta-tipo">
+                    <option value="🚓 Blitz / Operação">🚓 Blitz / Operação</option>
+                    <option value="🌊 Alagamento / Temporal">🌊 Alagamento / Temporal</option>
+                    <option value="🚑 Acidente Grave">🚑 Acidente Grave</option>
+                    <option value="🚨 Moto Roubada / Perigo">🚨 Moto Roubada / Perigo</option>
+                    <option value="🚧 Trânsito Parado / Obra">🚧 Trânsito Parado / Obra</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Rua / Bairro / Referência</label>
+                <input type="text" id="alerta-endereco" placeholder="Ex: Av. Ataliba Leonel, alt 1200">
+            </div>
+            <div class="input-group">
+                <label>Observação (Sentido da via, placa, etc.)</label>
+                <input type="text" id="alerta-desc" placeholder="Ex: Sentido Centro, faixa da direita">
+            </div>
+            <button class="btn-calc" id="btn-salvar-alerta" style="background:var(--success);" onclick="salvarItemModulo('alertas', true)">📲 Cravar no Radar & Enviar WhatsApp</button>
+            <button class="btn-calc" style="background:#30363d; font-size:12px; padding:10px;" onclick="salvarItemModulo('alertas', false)">📍 Apenas Salvar no Mapa</button>
+            <button class="btn-cancel" id="btn-cancel-alerta" onclick="cancelarEdicao('alertas')">Cancelar Edição</button>
+
+            <h4 style="color:var(--warning); font-size:13px; margin-top:18px; margin-bottom:8px;">📡 Ocorrências no Radar</h4>
+            <div id="lista-alertas"></div>
+        </div>
+    </div>
+
+    <!-- 7. TELA GRUPO DE RESENHA -->
+    <div id="tela-comunidade" class="tela-app">
+        <div class="card" style="text-align:center;">
+            <h3 style="color:var(--success); margin-bottom:15px;">🟢 Grupo de Resenha da Tropa</h3>
+            <p style="font-size:13px; margin-bottom:15px; line-height:1.4;">
+                Entre na resenha oficial da Tropa no WhatsApp para trocar ideia, mandar alertas da pista e acompanhar a galera!
+            </p>
+            <a href="https://chat.whatsapp.com/DlhvdwugONX7Xac1pMG6x3?s=cl&p=a&mlu=4&ilr=4&iam=2" target="_blank" class="btn-calc" style="background:var(--success);">🟢 Entrar no Grupo de Resenha</a>
+        </div>
+    </div>
+
+    <!-- 8. TELA MANUAL E BACKUP (IGUAL ANTIGAMENTE) -->
+    <div id="tela-manual" class="tela-app">
+        <div class="card">
+            <h3 style="color:var(--primary); margin-bottom:15px;">📖 Manual e Instruções</h3>
+            <div class="qg-item"><strong>🚫 Piores Lojas:</strong> Mapa visual e ranking ordenado pelas lojas mais demoradas. Você pode editar ou remover qualquer loja.</div>
+            <div class="qg-item"><strong>📍 Bases & QGs:</strong> Guarde no mapa os pontos de concentração onde toca mais pedido.</div>
+            <div class="qg-item"><strong>🛋️ Bom Descanso:</strong> Pontos seguros com água, sombra, tomada e banheiro.</div>
+            <div class="qg-item"><strong>⛽ Mapa Postos:</strong> Controle de preço e qualidade da gasolina nos postos parceiros.</div>
+            <div class="qg-item"><strong>📡 Radar Alerta:</strong> Marca ocorrências no mapa e dispara o aviso formatado para os grupos.</div>
+            <div class="qg-item"><strong>✏️ Editar Tudo:</strong> Toque no botão <strong>✏️</strong> em qualquer item salvo para alterar nome, endereço, preço ou pino no mapa.</div>
+        </div>
+        
+        <div class="card" style="border-color:var(--warning);">
+            <h3 style="color:var(--warning); margin-bottom:10px;">💾 Backup e Restauro de Dados</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:15px;">Vai trocar de celular ou quer guardar o seu histórico? Extraia o seu código de segurança abaixo.</p>
+            
+            <button class="btn-calc" style="background:var(--warning); color:#000;" onclick="exportarDadosApp()">📤 EXTRAIR MEUS DADOS (COPIAR)</button>
+            
+            <div style="margin-top:20px; border-top:1px dashed #30363d; padding-top:15px;">
+                <p style="font-size:11px; color:var(--text-light); margin-bottom:10px;">Colar dados de outro aparelho:</p>
+                <textarea id="input-backup" placeholder="Cole o código do backup aqui..." style="width:100%; height:80px; background:#0f1115; color:#fff; border:1px solid #30363d; border-radius:8px; padding:10px; font-size:12px; margin-bottom:10px;"></textarea>
+                <button class="btn-calc" style="background:var(--success);" onclick="importarDadosApp()">📥 RESTAURAR DADOS</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- JAVASCRIPT DO APLICATIVO                                 -->
+    <!-- ======================================================== -->
+    <script>
+        const LINK_RESENHA = "https://chat.whatsapp.com/DlhvdwugONX7Xac1pMG6x3?s=cl&p=a&mlu=4&ilr=4&iam=2";
+
+        let historicoTelas = ['tela-menu'];
+        let scrollPosMenu = 0;
+
+        // Estado dos 5 Mapas Separados e Edições
+        const modulosConfig = {
+            lojas:    { storageKey: 't_lojas_m',    cor: '#ff4444', emoji: '🚫', mapId: 'map-lojas',    btnTxt: 'Adicionar Pior Loja',         cancelId: 'btn-cancel-loja',     btnId: 'btn-salvar-loja' },
+            qgs:      { storageKey: 't_bases_m',    cor: '#FF6B00', emoji: '📍', mapId: 'map-qgs',      btnTxt: 'Adicionar QG',                cancelId: 'btn-cancel-qg',       btnId: 'btn-salvar-qg' },
+            descanso: { storageKey: 't_descanso_m', cor: '#25D366', emoji: '🛋️', mapId: 'map-descanso', btnTxt: 'Adicionar Ponto de Descanso', cancelId: 'btn-cancel-descanso', btnId: 'btn-salvar-descanso' },
+            postos:   { storageKey: 't_postos_m',   cor: '#1877F2', emoji: '⛽', mapId: 'map-postos',   btnTxt: 'Adicionar Posto',             cancelId: 'btn-cancel-posto',    btnId: 'btn-salvar-posto' },
+            alertas:  { storageKey: 't_alertas_m',  cor: '#ffc107', emoji: '📡', mapId: 'map-alertas',  btnTxt: '📲 Cravar no Radar & Enviar WhatsApp', cancelId: 'btn-cancel-alerta', btnId: 'btn-salvar-alerta' }
+        };
+
+        let mapasInstancias = {};
+        let camadasMarcadores = {};
+        let pinoTemporario = {};
+        let coordSelecionada = {};
+        let idEmEdicao = { lojas: null, qgs: null, descanso: null, postos: null, alertas: null };
+        let dadosModulos = {};
+
+        // Dados iniciais de exemplo na primeira abertura
+        const exemplosIniciais = {
+            lojas: [{ id: 1, nome: 'Shopping Pátio Paulista', endereco: 'Rua Treze de Maio, 1947 - Bela Vista', espera: 35, motivo: 'Demora no pico e fila na doca', lat: -23.5707, lng: -46.6433 }],
+            qgs: [{ id: 2, nome: 'QG Praça Oswaldo Cruz', endereco: 'Praça Oswaldo Cruz - Paraíso', desc: 'Concentração forte, toca bem Paulista e Jardins', lat: -23.5715, lng: -46.6448 }],
+            descanso: [{ id: 3, nome: 'Ponto de Apoio Consolação', endereco: 'Rua da Consolação, 2200', desc: 'Água, banheiro limpo, tomada e sombra', lat: -23.5535, lng: -46.6598 }],
+            postos: [{ id: 4, nome: 'Posto Shell Consolação', endereco: 'Rua da Consolação, 2100', preco: 5.79, nota: 'Boa ⭐⭐⭐', lat: -23.5538, lng: -46.6589 }],
+            alertas: []
+        };
+
+        // --- INICIALIZAÇÃO ---
+        window.onload = () => {
+            inicializarRelogio();
+            carregarMotoGeral();
+            carregarMantra();
+            inicializarDadosLocais();
+            carregarClimaTodasZonasSP();
+
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            }
+        };
+
+        function inicializarRelogio() {
+            const tick = () => {
+                document.getElementById('relogio-atual').innerText = new Date().toLocaleTimeString('pt-BR');
+            };
+            tick();
+            setInterval(tick, 1000);
+        }
+
+        function mostrarToast(msg) {
+            let t = document.getElementById("toast");
+            t.innerText = msg;
+            t.className = "show";
+            setTimeout(() => { t.className = t.className.replace("show", ""); }, 2800);
+        }
+
+        function toggleModoExtremo() {
+            document.body.classList.toggle('modo-extremo');
+            document.querySelector('.btn-night').innerText = document.body.classList.contains('modo-extremo') ? "☀ Normal" : "🦇 Extremo";
+        }
+
+        // --- NAVEGAÇÃO DE TELAS IGUAL AO ORIGINAL ---
+        function abrirTela(id) {
+            if (historicoTelas[historicoTelas.length - 1] === id) return;
+            if (historicoTelas[historicoTelas.length - 1] === 'tela-menu') scrollPosMenu = window.scrollY;
+            
+            document.querySelectorAll('.tela-app').forEach(t => t.style.display = 'none');
+            document.getElementById('btn-voltar').style.display = 'block';
+            
+            let alvo = document.getElementById(id);
+            if (alvo) {
+                alvo.style.display = 'block';
+                window.scrollTo(0, 0);
+                historicoTelas.push(id);
+            }
+
+            if (id === 'tela-lojas') iniciarMapaModulo('lojas');
+            if (id === 'tela-qgs') iniciarMapaModulo('qgs');
+            if (id === 'tela-descanso') iniciarMapaModulo('descanso');
+            if (id === 'tela-postos') iniciarMapaModulo('postos');
+            if (id === 'tela-alerta') iniciarMapaModulo('alertas');
+        }
+
+        function voltarContexto() {
+            if (historicoTelas.length > 1) {
+                historicoTelas.pop();
+                let anterior = historicoTelas[historicoTelas.length - 1];
+                document.querySelectorAll('.tela-app').forEach(t => t.style.display = 'none');
+                let prev = document.getElementById(anterior);
+                if (prev) {
+                    prev.style.display = 'block';
+                    if (anterior === 'tela-menu') {
+                        document.getElementById('btn-voltar').style.display = 'none';
+                        window.scrollTo(0, scrollPosMenu);
+                    } else {
+                        window.scrollTo(0, 0);
+                    }
+                }
+            }
+        }
+
+        // --- SUA MOTO (DIGITÁVEL) ---
+        function carregarMotoGeral() {
+            document.getElementById('seletor-moto-geral').value = localStorage.getItem('t_moto_g') || '';
+        }
+
+        function alterarMotoGeral() {
+            let m = document.getElementById('seletor-moto-geral').value.trim();
+            localStorage.setItem('t_moto_g', m);
+            mostrarToast(m ? "Moto salva: " + m : "Moto removida.");
+        }
+
+        // --- MANTRA EDITÁVEL ---
+        const mantraPadrao = '"Minha mente é atenta, meu freio é preciso. O asfalto não é pista, é de onde tiro meu sustento. Volto pra casa íntegro, volto pra quem me espera. Com responsabilidade e coragem, eu assumo o controle da rua."';
+
+        function carregarMantra() {
+            let txt = localStorage.getItem('t_mantra_txt') || mantraPadrao;
+            document.getElementById('mantra-exibicao').innerText = txt;
+        }
+
+        function abrirEdicaoMantra() {
+            let box = document.getElementById('box-editar-mantra');
+            let inp = document.getElementById('input-mantra-texto');
+            inp.value = localStorage.getItem('t_mantra_txt') || mantraPadrao;
+            box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function salvarMantraEditado() {
+            let novo = document.getElementById('input-mantra-texto').value.trim();
+            if (!novo) return;
+            localStorage.setItem('t_mantra_txt', novo);
+            document.getElementById('mantra-exibicao').innerText = novo;
+            document.getElementById('box-editar-mantra').style.display = 'none';
+            mostrarToast("✅ Mantra atualizado!");
+        }
+
+        // --- CLIMA SP AO VIVO ---
+        const regioesSP = {
+            centro: { nome: "📍 Centro / Paulista", lat: -23.5558, lng: -46.6396 },
+            norte:  { nome: "📍 Zona Norte",        lat: -23.5015, lng: -46.6250 },
+            sul:    { nome: "📍 Zona Sul",          lat: -23.6270, lng: -46.6640 },
+            leste:  { nome: "📍 Zona Leste",        lat: -23.5410, lng: -46.5760 },
+            oeste:  { nome: "📍 Zona Oeste",        lat: -23.5615, lng: -46.7010 }
+        };
+        let cacheClimaZonas = {};
+
+        function textoCondicaoClima(code) {
+            if (code === 0) return "Céu Limpo ☀️";
+            if (code === 1 || code === 2) return "Sol c/ Nuvens ⛅";
+            if (code === 3) return "Nublado ☁️";
+            if (code === 45 || code === 48) return "Neblina 🌫️";
+            if (code >= 51 && code <= 57) return "Garoando 🌦️";
+            if (code >= 61 && code <= 65) return "Chuva 🌧️";
+            if (code >= 80 && code <= 82) return "Pancada Forte ⛈️";
+            if (code >= 95) return "Temporal ⚡";
+            return "Variável ⛅";
+        }
+
+        async function carregarClimaTodasZonasSP() {
+            let select = document.getElementById('seletor-regiao');
+            for (let chave in regioesSP) {
+                let r = regioesSP[chave];
+                try {
+                    let url = `https://api.open-meteo.com/v1/forecast?latitude=${r.lat}&longitude=${r.lng}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=America%2FSao_Paulo`;
+                    let res = await fetch(url);
+                    let d = await res.json();
+                    if (d && d.current) {
+                        let temp = Math.round(d.current.temperature_2m);
+                        let cond = textoCondicaoClima(d.current.weather_code);
+                        cacheClimaZonas[chave] = {
+                            temp,
+                            cond,
+                            umid: d.current.relative_humidity_2m,
+                            vento: Math.round(d.current.wind_speed_10m)
+                        };
+                        let opt = select.querySelector(`option[value="${chave}"]`);
+                        if (opt) opt.innerText = `${r.nome} - ${temp}°C (${cond})`;
+                    }
+                } catch (e) {}
+            }
+            atualizarClimaRegiao();
+        }
+
+        function atualizarClimaRegiao() {
+            let zona = document.getElementById('seletor-regiao').value;
+            let info = cacheClimaZonas[zona];
+            let el = document.getElementById('clima-resumo-tela');
+            if (info) {
+                el.innerText = `Agora: ${info.temp}°C • ${info.cond} • 💧 Umidade ${info.umid}% • 💨 Vento ${info.vento} km/h`;
+            } else {
+                el.innerText = "Chuvas e umidade monitoradas ao vivo em São Paulo.";
+            }
+        }
+
+        // --- CARREGAMENTO E MIGRAÇÃO DE DADOS DOS MÓDULOS ---
+        function inicializarDadosLocais() {
+            Object.keys(modulosConfig).forEach(mod => {
+                let key = modulosConfig[mod].storageKey;
+                let salvo = localStorage.getItem(key);
+                if (salvo === null) {
+                    dadosModulos[mod] = exemplosIniciais[mod];
+                    localStorage.setItem(key, JSON.stringify(dadosModulos[mod]));
+                } else {
+                    let lista = JSON.parse(salvo) || [];
+                    // Compatibilidade com formato antigo (title / desc sem nome separado)
+                    dadosModulos[mod] = lista.map((item, i) => ({
+                        id: item.id || (Date.now() + i),
+                        nome: item.nome || (item.title ? item.title.replace(/^(Base\/QG: |Posto: )/, '') : 'Local Salvo'),
+                        endereco: item.endereco || 'Marcado no mapa',
+                        desc: item.desc || '',
+                        espera: item.espera || 25,
+                        motivo: item.motivo || item.desc || '',
+                        preco: item.preco || 0,
+                        nota: item.nota || 'Boa ⭐⭐⭐',
+                        tipoAlerta: item.tipoAlerta || item.nome || '🚓 Blitz / Operação',
+                        lat: item.lat || -23.5505,
+                        lng: item.lng || -46.6333
+                    }));
+                }
+                renderizarListaModulo(mod);
+            });
+        }
+
+        // --- MOTOR DOS MAPAS SEPARADOS ---
+        function criarPinoCor(cor, emoji) {
+            return L.divIcon({
+                className: '',
+                html: `<div class="pin-custom" style="background:${cor};"><span>${emoji}</span></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -28]
+            });
+        }
+
+        function iniciarMapaModulo(mod) {
+            let cfg = modulosConfig[mod];
+            if (!mapasInstancias[mod]) {
+                let m = L.map(cfg.mapId).setView([-23.5558, -46.6396], 12);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+                camadasMarcadores[mod] = L.layerGroup().addTo(m);
+                mapasInstancias[mod] = m;
+
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(pos => {
+                        let lat = pos.coords.latitude;
+                        let lng = pos.coords.longitude;
+                        m.setView([lat, lng], 14);
+                        L.circleMarker([lat, lng], {color: '#1877F2', radius: 7, fillOpacity: 0.85}).addTo(m).bindPopup("🏍️ Você está aqui!");
+                    }, () => {});
+                }
+
+                m.on('click', function(e) {
+                    coordSelecionada[mod] = { lat: e.latlng.lat, lng: e.latlng.lng };
+                    if (pinoTemporario[mod]) m.removeLayer(pinoTemporario[mod]);
+                    pinoTemporario[mod] = L.marker([e.latlng.lat, e.latlng.lng]).addTo(m).bindPopup("📍 Pino marcado aqui!").openPopup();
+                    mostrarToast("📍 Local marcado no mapa!");
+                });
+            }
+            setTimeout(() => {
+                mapasInstancias[mod].invalidateSize();
+                desenharPinosModulo(mod);
+            }, 250);
+        }
+
+        function desenharPinosModulo(mod) {
+            let m = mapasInstancias[mod];
+            let camada = camadasMarcadores[mod];
+            if (!m || !camada) return;
+
+            camada.clearLayers();
+            let cfg = modulosConfig[mod];
+
+            dadosModulos[mod].forEach(item => {
+                let extraPopup = '';
+                if (mod === 'lojas') extraPopup = `⏳ Espera: ~${item.espera} min<br>⚠️ ${item.motivo}`;
+                else if (mod === 'postos') extraPopup = `⛽ R$ ${Number(item.preco).toFixed(2)} | ${item.nota}`;
+                else extraPopup = item.desc || '';
+
+                let linkGPS = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+                let html = `
+                    <div style="font-size:12px; color:#111; min-width:150px;">
+                        <b>${item.nome}</b><br>
+                        <span style="font-size:11px; color:#555;">📍 ${item.endereco}</span><br>
+                        <span style="font-size:11px;">${extraPopup}</span><br>
+                        <a href="${linkGPS}" target="_blank" style="display:inline-block; margin-top:5px; background:#FF6B00; color:#fff; padding:3px 8px; border-radius:4px; text-decoration:none; font-size:11px; font-weight:bold;">🧭 Ir no GPS</a>
+                    </div>`;
+                L.marker([item.lat, item.lng], { icon: criarPinoCor(cfg.cor, cfg.emoji) })
+                 .addTo(camada)
+                 .bindPopup(html);
+            });
+        }
+
+        async function buscarLatLngPorEndereco(endereco) {
+            try {
+                let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endereco + ', São Paulo, Brasil')}`);
+                let data = await res.json();
+                if (!data || data.length === 0) {
+                    res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endereco + ', Brasil')}`);
+                    data = await res.json();
+                }
+                if (data && data.length > 0) {
+                    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        // --- SALVAR OU ATUALIZAR (EDIÇÃO COMPLETA EM TODOS OS MÓDULOS) ---
+        async function salvarItemModulo(mod, enviarWhats = false) {
+            let nome = '', endereco = '', desc = '', espera = 25, motivo = '', preco = 0, nota = 'Boa ⭐⭐⭐';
+
+            if (mod === 'lojas') {
+                nome = document.getElementById('loja-nome').value.trim();
+                endereco = document.getElementById('loja-endereco').value.trim();
+                espera = parseInt(document.getElementById('loja-espera').value) || 25;
+                motivo = document.getElementById('loja-motivo').value.trim() || 'Demora na entrega';
+            } else if (mod === 'qgs') {
+                nome = document.getElementById('qg-nome').value.trim();
+                endereco = document.getElementById('qg-endereco').value.trim();
+                desc = document.getElementById('qg-desc').value.trim() || 'Ponto da tropa';
+            } else if (mod === 'descanso') {
+                nome = document.getElementById('descanso-nome').value.trim();
+                endereco = document.getElementById('descanso-endereco').value.trim();
+                desc = document.getElementById('descanso-desc').value.trim() || 'Local de descanso';
+            } else if (mod === 'postos') {
+                nome = document.getElementById('posto-nome').value.trim();
+                endereco = document.getElementById('posto-endereco').value.trim();
+                preco = parseFloat(document.getElementById('posto-preco').value) || 0;
+                nota = document.getElementById('posto-nota').value;
+            } else if (mod === 'alertas') {
+                nome = document.getElementById('alerta-tipo').value;
+                endereco = document.getElementById('alerta-endereco').value.trim();
+                desc = document.getElementById('alerta-desc').value.trim();
+            }
+
+            if (!nome) {
+                mostrarToast("Preencha o nome primeiro!");
+                return;
+            }
+
+            let editId = idEmEdicao[mod];
+            let itemAntigo = editId ? dadosModulos[mod].find(x => x.id === editId) : null;
+
+            let coords = coordSelecionada[mod] || null;
+            if (!coords) {
+                if (endereco && (!itemAntigo || itemAntigo.endereco !== endereco)) {
+                    mostrarToast("🔎 Buscando rua no satélite...");
+                    coords = await buscarLatLngPorEndereco(endereco);
+                } else if (itemAntigo) {
+                    coords = { lat: itemAntigo.lat, lng: itemAntigo.lng };
+                }
+            }
+
+            if (!coords) {
+                mostrarToast("Endereço não achado! Toque o dedo no mapa acima para marcar.");
+                return;
+            }
+
+            let novoObjeto = {
+                id: editId || Date.now(),
+                nome,
+                endereco: endereco || 'Marcado direto no mapa',
+                desc,
+                espera,
+                motivo,
+                preco,
+                nota,
+                lat: coords.lat,
+                lng: coords.lng
+            };
+
+            if (editId) {
+                let idx = dadosModulos[mod].findIndex(x => x.id === editId);
+                if (idx !== -1) dadosModulos[mod][idx] = novoObjeto;
+                mostrarToast("✅ Alterações salvas!");
+            } else {
+                dadosModulos[mod].unshift(novoObjeto);
+                mostrarToast("✅ Salvo com sucesso!");
+            }
+
+            localStorage.setItem(modulosConfig[mod].storageKey, JSON.stringify(dadosModulos[mod]));
+            cancelarEdicao(mod);
+            renderizarListaModulo(mod);
+            desenharPinosModulo(mod);
+
+            if (mapasInstancias[mod]) {
+                mapasInstancias[mod].setView([coords.lat, coords.lng], 15);
+            }
+
+            if (mod === 'alertas' && enviarWhats) {
+                let moto = localStorage.getItem('t_moto_g') || '';
+                let msg = `🚨 *ALERTA DA TROPA* 🚨\n\n*Tipo:* ${nome}\n*Local:* ${novoObjeto.endereco}`
+                    + (desc ? `\n*Obs:* ${desc}` : '')
+                    + (moto ? `\n*Moto:* ${moto}` : '')
+                    + `\n\n🟢 *Grupo Resenha:* ${LINK_RESENHA}`;
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+            }
+        }
+
+        // --- CARREGAR ITEM NO FORMULÁRIO PARA EDITAR ---
+        function editarItemModulo(mod, id) {
+            let item = dadosModulos[mod].find(x => x.id === id);
+            if (!item) return;
+
+            idEmEdicao[mod] = id;
+            coordSelecionada[mod] = null;
+
+            if (mod === 'lojas') {
+                document.getElementById('loja-nome').value = item.nome;
+                document.getElementById('loja-endereco').value = item.endereco;
+                document.getElementById('loja-espera').value = item.espera;
+                document.getElementById('loja-motivo').value = item.motivo;
+            } else if (mod === 'qgs') {
+                document.getElementById('qg-nome').value = item.nome;
+                document.getElementById('qg-endereco').value = item.endereco;
+                document.getElementById('qg-desc').value = item.desc;
+            } else if (mod === 'descanso') {
+                document.getElementById('descanso-nome').value = item.nome;
+                document.getElementById('descanso-endereco').value = item.endereco;
+                document.getElementById('descanso-desc').value = item.desc;
+            } else if (mod === 'postos') {
+                document.getElementById('posto-nome').value = item.nome;
+                document.getElementById('posto-endereco').value = item.endereco;
+                document.getElementById('posto-preco').value = item.preco;
+                document.getElementById('posto-nota').value = item.nota;
+            } else if (mod === 'alertas') {
+                document.getElementById('alerta-tipo').value = item.nome;
+                document.getElementById('alerta-endereco').value = item.endereco;
+                document.getElementById('alerta-desc').value = item.desc;
+            }
+
+            let cfg = modulosConfig[mod];
+            document.getElementById(cfg.btnId).innerText = "💾 Salvar Alterações";
+            document.getElementById(cfg.cancelId).style.display = "block";
+
+            if (mapasInstancias[mod]) {
+                mapasInstancias[mod].setView([item.lat, item.lng], 16);
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            mostrarToast("✏️ Editando! Altere os dados ou toque no mapa.");
+        }
+
+        function cancelarEdicao(mod) {
+            idEmEdicao[mod] = null;
+            coordSelecionada[mod] = null;
+            if (pinoTemporario[mod] && mapasInstancias[mod]) {
+                mapasInstancias[mod].removeLayer(pinoTemporario[mod]);
+                pinoTemporario[mod] = null;
+            }
+
+            const camposPorMod = {
+                lojas: ['loja-nome', 'loja-endereco', 'loja-espera', 'loja-motivo'],
+                qgs: ['qg-nome', 'qg-endereco', 'qg-desc'],
+                descanso: ['descanso-nome', 'descanso-endereco', 'descanso-desc'],
+                postos: ['posto-nome', 'posto-endereco', 'posto-preco'],
+                alertas: ['alerta-endereco', 'alerta-desc']
+            };
+            (camposPorMod[mod] || []).forEach(id => {
+                let el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+
+            let cfg = modulosConfig[mod];
+            document.getElementById(cfg.btnId).innerText = cfg.btnTxt;
+            document.getElementById(cfg.cancelId).style.display = "none";
+        }
+
+        function removerItemModulo(mod, id) {
+            dadosModulos[mod] = dadosModulos[mod].filter(x => x.id !== id);
+            localStorage.setItem(modulosConfig[mod].storageKey, JSON.stringify(dadosModulos[mod]));
+            if (idEmEdicao[mod] === id) cancelarEdicao(mod);
+            renderizarListaModulo(mod);
+            desenharPinosModulo(mod);
+            mostrarToast("🗑️ Removido!");
+        }
+
+        function focarPinoModulo(mod, lat, lng) {
+            if (mapasInstancias[mod]) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                mapasInstancias[mod].setView([lat, lng], 16);
+            }
+        }
+
+        // --- RENDERIZAR LISTAS E RANKING ---
+        function renderizarListaModulo(mod) {
+            let div = document.getElementById('lista-' + mod);
+            if (!div) return;
+            div.innerHTML = '';
+
+            let lista = [...dadosModulos[mod]];
+            // Ordena Piores Lojas pela maior demora (Ranking 1º, 2º, 3º...)
+            if (mod === 'lojas') {
+                lista.sort((a, b) => (b.espera || 0) - (a.espera || 0));
+            }
+
+            if (lista.length === 0) {
+                div.innerHTML = `<p style="font-size:11px; color:var(--text-muted); text-align:center; padding:10px;">Nenhum local cadastrado ainda.</p>`;
+                return;
+            }
+
+            lista.forEach((item, idx) => {
+                let selo = '';
+                let sub = '';
+
+                if (mod === 'lojas') {
+                    selo = `<span class="log-tag" style="background:var(--danger); color:#fff;">🏆 #${idx + 1} DO RANKING • ⏳ ${item.espera} min</span>`;
+                    sub = `⚠️ ${item.motivo}`;
+                } else if (mod === 'postos') {
+                    selo = `<span class="log-tag" style="background:var(--info); color:#fff;">⛽ R$ ${Number(item.preco).toFixed(2)} • ${item.nota}</span>`;
+                } else if (mod === 'alertas') {
+                    selo = `<span class="log-tag" style="background:var(--warning); color:#000;">📡 RADAR ATIVO</span>`;
+                    sub = item.desc;
+                } else {
+                    sub = item.desc;
+                }
+
+                let linkGPS = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+
+                div.innerHTML += `
+                    <div class="log-item">
+                        <div class="log-left">
+                            ${selo}
+                            <strong style="color:#fff; font-size:13px;">${item.nome}</strong>
+                            <span style="font-size:11px; color:var(--text-light);">📍 ${item.endereco}</span>
+                            ${sub ? `<span style="font-size:11px; color:var(--text-muted);">${sub}</span>` : ''}
+                        </div>
+                        <div class="acoes-item">
+                            <button class="btn-act" title="Ver no mapa" onclick="focarPinoModulo('${mod}', ${item.lat}, ${item.lng})">📍</button>
+                            <a href="${linkGPS}" target="_blank" class="btn-act" title="Abrir GPS">🧭</a>
+                            <button class="btn-act" title="Editar" onclick="editarItemModulo('${mod}', ${item.id})">✏️</button>
+                            <button class="btn-del" title="Excluir" onclick="removerItemModulo('${mod}', ${item.id})">🗑️</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // --- SISTEMA DE BACKUP E RESTAURO IGUAL AO ANTIGO ---
+        function exportarDadosApp() {
+            let backup = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                let key = localStorage.key(i);
+                if (key.startsWith('t_') || key.startsWith('tropa_')) {
+                    backup[key] = localStorage.getItem(key);
+                }
+            }
+            let codigo = btoa(encodeURIComponent(JSON.stringify(backup)));
+            navigator.clipboard.writeText(codigo).then(() => {
+                mostrarToast("📦 Código copiado! Guarde nas suas notas ou no WhatsApp.");
+            }).catch(() => {
+                document.getElementById('input-backup').value = codigo;
+                mostrarToast("Selecione e copie o código gerado na caixa.");
+            });
+        }
+
+        function importarDadosApp() {
+            let val = document.getElementById('input-backup').value.trim();
+            if (!val) {
+                mostrarToast("Cole o código na caixa primeiro!");
+                return;
+            }
+            try {
+                let backup = JSON.parse(decodeURIComponent(atob(val)));
+                for (let key in backup) {
+                    localStorage.setItem(key, backup[key]);
+                }
+                mostrarToast("✅ Dados restaurados com sucesso! A reiniciar...");
+                setTimeout(() => location.reload(), 1500);
+            } catch (e) {
+                mostrarToast("❌ Código inválido ou corrompido.");
+            }
+        }
+    </script>
+</body>
+</html>
